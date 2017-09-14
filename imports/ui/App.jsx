@@ -1,31 +1,27 @@
-import React, { Component } from 'react';
+import React, {Component} from 'react';
 import PropTypes from 'prop-types';
-import { createContainer } from 'meteor/react-meteor-data';
-import { ReactiveVar } from 'meteor/reactive-var';
+import container from '/imports/modules/container';
 
-import { Tasks } from '../api/tasks.js';
+import {Tasks} from '../api/tasks.js';
 import Task from './Task.jsx';
 import AccountsUIWrapper from './AccountsUIWrapper.jsx';
-
-let error = new ReactiveVar(null);
 
 // App component - represents the whole app
 class App extends Component {
 
     constructor(props) {
         super(props);
-        console.log('setting state?');
-        this.state = {error: error};
     }
 
     renderTasks() {
         return this.props.tasks.map((task) => (
-            <Task key={task._id} task={task} />
+            <Task key={task._id} task={task}/>
         ));
     }
 
     render() {
-        var e = this.state.error.get();
+        // var e = this.state.error.get();
+        var e = this.props.error;
         if (e) {
             return (<div>Sorry, mate. You just got errored. {e.message}</div>)
         }
@@ -53,23 +49,29 @@ class App extends Component {
 }
 
 App.propTypes = {
-    tasks: PropTypes.array.isRequired,
+    tasks: PropTypes.array,
     loading: PropTypes.bool,
     error: PropTypes.object
 };
 
-export default createContainer((props) => {
+export default container(function (props, onData) {
     const taskHandle = Meteor.subscribe('tasks', {
-        onError: function(err) {
-            if (err) {
-                error.set(err);
-            }
+        onError: function (err) {
+            onData(null, {
+                error: err
+            });
         }
     });
 
-    return {
-        loading: !taskHandle.ready(),
-        tasks: Tasks.find({}, {sort: {createdAt: -1}}).fetch(),
-        currentUser: Meteor.user()
+    if (taskHandle.ready()) {
+        onData(null, {
+            tasks: Tasks.find({}, {sort: {createdAt: -1}}).fetch(),
+            currentUser: Meteor.user()
+        });
+    }
+    else {
+        onData(null, {
+            loading: true
+        });
     }
 }, App);
