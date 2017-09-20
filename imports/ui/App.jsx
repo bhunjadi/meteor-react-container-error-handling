@@ -1,21 +1,23 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { createContainer } from 'meteor/react-meteor-data';
+import { createContainer, withTracker } from 'meteor/react-meteor-data';
 import { ReactiveVar } from 'meteor/reactive-var';
 
 import { Tasks } from '../api/tasks.js';
 import Task from './Task.jsx';
 import AccountsUIWrapper from './AccountsUIWrapper.jsx';
 
-let error = new ReactiveVar(null);
+const error = new ReactiveVar(null);
 
-// App component - represents the whole app
-class App extends Component {
+// Clear error on login, to potentially represent the data (if user has adequate permissions).
+Accounts.onLogin(function() {
+    error.set(null);
+});
+
+export class App extends Component {
 
     constructor(props) {
         super(props);
-        console.log('setting state?');
-        this.state = {error: error};
     }
 
     renderTasks() {
@@ -25,13 +27,23 @@ class App extends Component {
     }
 
     render() {
-        var e = this.state.error.get();
-        if (e) {
-            return (<div>Sorry, mate. You just got errored. {e.message}</div>)
-        }
+        console.log(this.props);
 
-        if (this.props.loading) {
-            return (<div>Loading...</div>);
+        let content;
+        const e = error.get();
+        if (e) {
+            content = (<div>Sorry, mate. You just got errored. {e.message}</div>)
+        }
+        else if (this.props.loading) {
+            content = (<div>Loading...</div>);
+        }
+        else if (this.props.currentUser) {
+            content = (<ul>
+                {this.renderTasks()}
+            </ul>)
+        }
+        else {
+            content = <div>You have to sign in to view the tasks.</div>
         }
 
         return (
@@ -42,11 +54,7 @@ class App extends Component {
                     <AccountsUIWrapper />
                 </header>
 
-                {this.props.currentUser ?
-                    <ul>
-                        {this.renderTasks()}
-                    </ul> :
-                    <div>You have to sign in to view the tasks.</div>}
+                {content}
             </div>
         );
     }
@@ -58,18 +66,26 @@ App.propTypes = {
     error: PropTypes.object
 };
 
-export default createContainer((props) => {
-    const taskHandle = Meteor.subscribe('tasks', {
-        onError: function(err) {
-            if (err) {
-                error.set(err);
+export default withTracker((props) => {
+    let taskHandle = null;
+
+    // Only fetch data if there is no error
+    // If we would load taskHandle on every error it would end up in infinite loop
+    if (!error.get()) {
+        taskHandle = Meteor.subscribe('tasks', {
+            onError: function (err) {
+                console.log('onerror', err);
+                if (err) {
+                    error.set(err);
+                }
             }
-        }
-    });
+        });
+    }
 
     return {
-        loading: !taskHandle.ready(),
-        tasks: Tasks.find({}, {sort: {createdAt: -1}}).fetch(),
+        error: error.get(),
+        loading: taskHandle ? !taskHandle.ready() : false,
+        tasks: taskHandle ? Tasks.find({}, {sort: {createdAt: -1}}).fetch() : [],
         currentUser: Meteor.user()
     }
-}, App);
+})(App);
