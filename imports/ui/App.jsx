@@ -16,10 +16,6 @@ Accounts.onLogin(function() {
 
 export class App extends Component {
 
-    constructor(props) {
-        super(props);
-    }
-
     renderTasks() {
         return this.props.tasks.map((task) => (
             <Task key={task._id} task={task} />
@@ -27,9 +23,7 @@ export class App extends Component {
     }
 
     render() {
-        console.log(this.props);
-
-        let content;
+         let content;
         const e = error.get();
         if (e) {
             content = (<div>Sorry, mate. You just got errored. {e.message}</div>)
@@ -74,7 +68,6 @@ export default withTracker((props) => {
     if (!error.get()) {
         taskHandle = Meteor.subscribe('tasks', {
             onError: function (err) {
-                console.log('onerror', err);
                 if (err) {
                     error.set(err);
                 }

@@ -10,34 +10,38 @@ There are two different ways to create a container:
 See [App.jsx](../../tree/master/imports/ui/App.jsx)
 
 Error handling is made possible by using `ReactiveVar`. `error` variable is defined in the App module.  
-This variable should be used in the state of the component:
+This variable should be used in `withTracker` method where the dependency is registered:
 ```
-constructor(props) {
-    super(props);
-    this.state = {error: error};
-}
+export default withTracker((props) => {
+    ...
+    return {
+        error: error.get(),
+        ...
+    };
+})(App)
 ```
 
 And used in render() function:
 ```
 render() {
-    var e = this.state.error.get();
+    var e = error.get();
     if (e) {
-        return (<div>Sorry, mate. You just got errored. {e.message}</div>)
+        content = (<div>Sorry, mate. You just got errored. {e.message}</div>)
     }
     ...
 }
 ```
 
 **Summary**  
-In this approach props are return to the `createContainer` function. Error handling is done separately.
+In this approach props are returned in the `withTracker` function. Error handling is entirely in that function.
+Some considerations are required if we want to prevent endless loop.
 
 **Pros:**
-* simple container function
 * better for containers where no error handling is necessary
 
 **Cons:**
-* component state and module variable (`error`) must be used to handle errors
+* module variable (`error = ReactiveVar(null)`) must be used to handle errors
+* when handling the errors, some things are returned, some updated through reactive vars
 
 ## arunoda/react-komposer
 [Komposer branch](../../tree/komposer)  
@@ -72,8 +76,8 @@ export default container(function (props, onData) {
 Everything is handled in function passed to `container`.
 
 **Pros:**
-* data & error handling in one place
-* no state and module variables
+* data & error handling done consistently (onData callback, no return value)
+* no module variables
 
 **Cons:**
-* more complex container function
+* somewhat more complex container function
